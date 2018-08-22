@@ -1,3 +1,6 @@
+# after pre-train veries model with 65% data
+# 35% data remain will help us to evaluate weighting ratio for ensembling 
+
 import numpy as np
 import pandas as pd
 import timeit
@@ -21,7 +24,6 @@ from keras.utils.np_utils import to_categorical
 from keras.optimizers import RMSprop, adam, Nadam
 
 train = pd.read_csv("35%_data.csv")
-train = train[::-1]
 train_data = train[ features ]
 
 real_updown = [None]
@@ -55,47 +57,47 @@ for i in range(len(train_data)-window-forecast_day+1):
     train_y = np.vstack((train_y, train_data[(i+window):(i+window+forecast_day), 0]))
 
 
+######## creat training dataset from predictions from 5 different deep learning model  ##########
 
+# validation_y to array
+val_y = np.zeros(shape=(len(train_y), forecast_day))
+for i in range(len(train_y)):
+    val_y[i,:] = train_y[i,:]
+
+# 1st model
 model = load_model("35%_swish_1.h5")
 train_set_pred = model.predict(train_x, batch_size=4)
 predictions = np.zeros(shape=(len(train_y), 5, forecast_day))
-val_y = np.zeros(shape=(len(train_y), forecast_day))
-
-for i in range(len(train_y)):
-    val_y[i,:] = train_y[i,:]
 
 for i in range(len(train_y)):
     #value of prediction
     predictions[i,0,:] = train_set_pred[i,:]
 
-
+# 2nd model
 model = load_model("35%_eswish_2.h5")
 train_set_pred = model.predict(train_x, batch_size=4)
 
 for i in range(len(train_y)):
     #value of prediction
     predictions[i,1,:] = train_set_pred[i,:]
-print(predictions[1])
 
-
+# 3rd model
 model = load_model("35%_selu_1.h5")
 train_set_pred = model.predict(train_x, batch_size=4)
 
 for i in range(len(train_y)):
     #value of prediction
     predictions[i,2,:] = train_set_pred[i,:]
-print(predictions[1])
 
-
+# 4th model
 model = load_model("35%_lstm_1.h5")
 train_set_pred = model.predict(train_x, batch_size=4)
 
 for i in range(len(train_y)):
     #value of prediction
     predictions[i,3,:] = train_set_pred[i,:]
-print(predictions[1])
 
-
+# 5th model
 model = load_model("35%_lstm_2.h5")
 train_set_pred = model.predict(train_x, batch_size=4)
 
@@ -104,6 +106,7 @@ for i in range(len(train_y)):
     predictions[i,4,:] = train_set_pred[i,:]
 print(predictions[1])
 
+#######################################################
 
 train_x = predictions
 train_y = val_y
@@ -111,12 +114,11 @@ train_y = val_y
 train_x, validation_x = train_x[:int(len(train_x)*training_data_rate),:,:], train_x[int(len(train_x)*training_data_rate):,:,:] 
 train_y, validation_y = train_y[:int(len(train_y)*training_data_rate),:], train_y[int(len(train_y)*training_data_rate):,:]
 
+# main, train stacking model with not too complex model
 
 model = Sequential()
 model.add(Conv1D(nb_filter=64, filter_length=1, input_shape=(5, 7), activation="linear"))
-model.add(Conv1D(nb_filter=16, filter_length=1, activation="linear"))
-model.add(Dropout(0.5))
-
+model.add(Dropout(0.2))
 model.add(Flatten())
 model.add(Dense(forecast_day))
 
@@ -164,7 +166,7 @@ train_history = model.fit(
     callbacks = [checkpoint, earlystopping])
 
 
-
+# load best saved weight
 model = load_model("stacking_.h5")
 validation_set_pred = model.predict(validation_x, batch_size=4)
 
@@ -192,4 +194,4 @@ for i in range(forecast_day):
     print("Trend accuracy of", i+1,"days after：", predictions[:,i,4].mean())
 print("7d average trend accuracy：", sum([predictions[i,:,4].mean() for i in range(len(predictions))])/len(predictions))
 
-
+# saved stacking weight then retrain model with 100% data
