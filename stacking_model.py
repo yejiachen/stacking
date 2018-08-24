@@ -65,7 +65,7 @@ for i in range(len(train_y)):
     val_y[i,:] = train_y[i,:]
 
 # 1st model
-model = load_model("35%_swish_1.h5")
+model = load_model("35%_relu_1.h5")
 train_set_pred = model.predict(train_x, batch_size=4)
 predictions = np.zeros(shape=(len(train_y), 5, forecast_day))
 
@@ -74,7 +74,7 @@ for i in range(len(train_y)):
     predictions[i,0,:] = train_set_pred[i,:]
 
 # 2nd model
-model = load_model("35%_eswish_2.h5")
+model = load_model("35%_swish_2.h5")
 train_set_pred = model.predict(train_x, batch_size=4)
 
 for i in range(len(train_y)):
